@@ -1,12 +1,13 @@
 require 'net/http'
 require 'cgi'
 require 'rexml/document'
-require 'digest/sha1'
+require 'digest/sha2'
 require 'rubygems'
 require 'hash_to_xml'
 require 'bigbluebutton_exception'
 require 'bigbluebutton_formatter'
 require 'bigbluebutton_modules'
+require 'logger'
 
 module BigBlueButton
 
@@ -41,6 +42,9 @@ module BigBlueButton
     # Secret salt for this server
     attr_accessor :salt
 
+    # Private key for the room
+    attr_accessor :room_key
+
     # API version e.g. 0.7 (valid for 0.7, 0.71 and 0.71a)
     attr_accessor :version
 
@@ -57,11 +61,15 @@ module BigBlueButton
     # TODO: do we really need an accessor? shouldn't be internal?
     attr_accessor :supported_versions
 
+    attr_accessor :logger
+
     # Initializes an instance
     # url::       URL to a BigBlueButton server (e.g. http://demo.bigbluebutton.org/bigbluebutton/api)
     # salt::      Secret salt for this server
     # version::   API version e.g. 0.7 (valid for 0.7, 0.71 and 0.71a)
     def initialize(url, salt, version='0.7', debug=false)
+      @logger = defined?(Rails) ? Rails.logger : Logger.new(STDOUT)
+
       @supported_versions = ['0.7', '0.8']
       @url = url
       @salt = salt
@@ -74,7 +82,7 @@ module BigBlueButton
         raise BigBlueButtonException.new("BigBlueButton error: Invalid API version #{version}. Supported versions: #{@supported_versions.join(', ')}")
       end
 
-      puts "BigBlueButtonAPI: Using version #{@version}" if @debug
+      @logger.debug("BigBlueButtonAPI: Using version #{@version}")
     end
 
 
@@ -480,11 +488,14 @@ module BigBlueButton
       # checksum calc
       checksum_param = params_string + @salt
       checksum_param = method.to_s + checksum_param
-      checksum = Digest::SHA1.hexdigest(checksum_param)
+      checksum = Digest::SHA256.hexdigest(checksum_param)
+
+
 
       # final url
       url += "#{params_string}&" unless params_string.empty?
       url += "checksum=#{checksum}"
+
     end
 
     # Performs an API call.
@@ -500,17 +511,17 @@ module BigBlueButton
     #                    POST instead of a GET and the data will be sent in the request body.
     def send_api_request(method, params={}, data=nil)
       url = get_url(method, params)
-
       @http_response = send_request(url, data)
       return { } if @http_response.body.empty?
 
       # 'Hashify' the XML
       @xml_response = @http_response.body
+
       hash = Hash.from_xml(@xml_response)
 
       # simple validation of the xml body
       unless hash.has_key?(:returncode)
-        raise BigBlueButtonException.new("Invalid response body. Is the API URL correct? \"#{@url}\", version #{@version}")
+        raise BigBlueButtonException.new("Invalid response body. Is the API URL correct? \"#{@url}\", version #{@version}, Dump #{@xml_response}")
       end
 
       # default cleanup in the response
@@ -533,7 +544,7 @@ module BigBlueButton
     # Otherwise uses GET
     def send_request(url, data=nil)
       begin
-        puts "BigBlueButtonAPI: URL request = #{url}" if @debug
+        @logger.debug("BigBlueButtonAPI: URL request = #{url}")
         url_parsed = URI.parse(url)
         http = Net::HTTP.new(url_parsed.host, url_parsed.port)
         http.open_timeout = @timeout
@@ -541,11 +552,11 @@ module BigBlueButton
         if data.nil?
           response = http.get(url_parsed.request_uri, @request_headers)
         else
-          puts "BigBlueButtonAPI: Sending as a POST request with data.size = #{data.size}" if @debug
+          @logger.debug("BigBlueButtonAPI: Sending as a POST request with data.size = #{data.size}")
           opts = { 'Content-Type' => 'text/xml' }.merge @request_headers
           response = http.post(url_parsed.request_uri, data, opts)
         end
-        puts "BigBlueButtonAPI: URL response = #{response.body}" if @debug
+        @logger.debug("BigBlueButtonAPI: URL response = #{response.body}")
 
       rescue TimeoutError => error
         raise BigBlueButtonException.new("Timeout error. Your server is probably down: \"#{@url}\". Error: #{error}")
