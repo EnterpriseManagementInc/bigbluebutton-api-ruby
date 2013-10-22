@@ -1,4 +1,4 @@
-require "base64"
+require 'base64'
 
 module BigBlueButton
 
@@ -44,12 +44,12 @@ module BigBlueButton
     end
 
     def to_xml
-      unless has_presentations?
-        ""
-      else
-        xml  = xml_header
+      if has_presentations?
+        xml = xml_header
         xml << presentations_to_xml
         xml << xml_footer
+      else
+        ''
       end
     end
 
@@ -62,29 +62,29 @@ module BigBlueButton
     end
 
     def xml_header
-      "<?xml version=\"1.0\" encoding=\"UTF-8\"?><modules>"
+      '<?xml version="1.0" encoding="UTF-8"?><modules>'
     end
 
     def xml_footer
-      "</modules>"
+      '</modules>'
     end
 
     def presentations_to_xml
-      xml = "<module name=\"presentation\">"
+      xml = '<module name="presentation">'
       @presentation_urls.each { |url| xml << "<document url=\"#{url}\" />" }
       @presentation_base64s.each do |name, data|
         xml << "<document name=\"#{name}\">"
         xml << data
-        xml << "</document>"
+        xml << '</document>'
       end
       @presentation_files.each do |filename|
         xml << "<document name=\"#{File.basename(filename)}\">"
-        File.open(filename, "r") do |file|
+        File.open(filename, 'r') do |file|
           xml << Base64.encode64(file.read)
         end
-        xml << "</document>"
+        xml << '</document>'
       end
-      xml << "</module>"
+      xml << '</module>'
     end
 
   end

@@ -10,19 +10,19 @@ module BigBlueButton
 
     # converts a value in the @hash to boolean
     def to_boolean(key)
-      unless @hash.has_key?(key)
-        false
+      if @hash.has_key?(key)
+        @hash[key] = @hash[key].downcase == 'true'
       else
-        @hash[key] = @hash[key].downcase == "true"
+        false
       end
     end
 
     # converts a value in the @hash to int
     def to_int(key)
-      unless @hash.has_key?(key)
-        0
-      else
+      if @hash.has_key?(key)
         @hash[key] = @hash[key].to_i
+      else
+        0
       end
     end
 
@@ -33,14 +33,12 @@ module BigBlueButton
 
     # converts a value in the @hash to DateTime
     def to_datetime(key)
-      unless @hash.has_key?(key) and @hash[key]
-        nil
-      else
+      if @hash.has_key?(key) and @hash[key]
         # BBB >= 0.8 uses the unix epoch for all time related values
         # older versions use strings
 
         # a number but in a String class
-        if (@hash[key].class == String && @hash[key].to_i.to_s == @hash[key])
+        if @hash[key].class == String && @hash[key].to_i.to_s == @hash[key]
           value = @hash[key].to_i
         else
           value = @hash[key]
@@ -49,7 +47,7 @@ module BigBlueButton
         if value.is_a?(Numeric)
           result = value == 0 ? nil : DateTime.parse(Time.at(value/1000.0).to_s)
         else
-          if value.downcase == "null"
+          if value.downcase == 'null'
             result = nil
           else
             # note: BBB 0.7 uses strings in the format: "Thu Sep 01 17:51:42 UTC 2011"
@@ -58,21 +56,23 @@ module BigBlueButton
         end
 
         @hash[key] = result
+      else
+        nil
       end
     end
 
     # converts a value in the @hash to a symbol
     def to_sym(key)
-      unless @hash.has_key?(key)
-        ""
-      else
+      if @hash.has_key?(key)
         if @hash[key].instance_of?(Symbol)
           @hash[key]
         elsif @hash[key].empty?
-          ""
+          ''
         else
           @hash[key] = @hash[key].downcase.to_sym
         end
+      else
+        ''
       end
     end
 
@@ -81,9 +81,9 @@ module BigBlueButton
       response = @hash
 
       # Adjust some values. There will always be a returncode, a message and a messageKey in the hash.
-      response[:returncode] = response[:returncode].downcase == "success"                              # true instead of "SUCCESS"
-      response[:messageKey] = "" if !response.has_key?(:messageKey) or response[:messageKey].empty?    # "" instead of {}
-      response[:message] = "" if !response.has_key?(:message) or response[:message].empty?             # "" instead of {}
+      response[:returncode] = response[:returncode].downcase == 'success'                              # true instead of "SUCCESS"
+      response[:messageKey] = '' if !response.has_key?(:messageKey) or response[:messageKey].empty?    # "" instead of {}
+      response[:message] = '' if !response.has_key?(:message) or response[:message].empty?             # "" instead of {}
 
       @hash = response
     end
@@ -132,7 +132,7 @@ module BigBlueButton
         rec[:metadata].each do |key, value|
           if value.nil? or value.empty? or value.split.empty?
             # removes any no {}s, []s, or " "s, should always be empty string
-            rec[:metadata][key] = ""
+            rec[:metadata][key] = ''
           end
         end
       end

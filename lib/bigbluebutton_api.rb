@@ -42,14 +42,8 @@ module BigBlueButton
     # Secret salt for this server
     attr_accessor :salt
 
-    # Private key for the room
-    attr_accessor :room_key
-
     # API version e.g. 0.7 (valid for 0.7, 0.71 and 0.71a)
     attr_accessor :version
-
-    # Flag to turn on/off debug mode
-    attr_accessor :debug
 
     # Maximum wait time for HTTP requests (secs)
     attr_accessor :timeout
@@ -67,13 +61,13 @@ module BigBlueButton
     # url::       URL to a BigBlueButton server (e.g. http://demo.bigbluebutton.org/bigbluebutton/api)
     # salt::      Secret salt for this server
     # version::   API version e.g. 0.7 (valid for 0.7, 0.71 and 0.71a)
-    def initialize(url, salt, version='0.7', debug=false)
+    def initialize(url, salt, version='0.8')
       @logger = defined?(Rails) ? Rails.logger : Logger.new(STDOUT)
 
-      @supported_versions = ['0.7', '0.8']
+      @supported_versions = %w(0.7 0.8)
       @url = url
       @salt = salt
-      @debug = debug
+
       @timeout = 10         # default timeout for api requests
       @request_headers = {} # http headers sent in all requests
 
@@ -158,7 +152,7 @@ module BigBlueButton
       end
 
       # with modules we send a post request (only for >= 0.8)
-      if modules and @version >= "0.8"
+      if modules and @version >= '0.8'
         response = send_api_request(:create, params, modules.to_xml)
       else
         response = send_api_request(:create, params)
@@ -169,7 +163,7 @@ module BigBlueButton
       formatter.to_string(:moderatorPW)
       formatter.to_string(:attendeePW)
       formatter.to_boolean(:hasBeenForciblyEnded)
-      if @version >= "0.8"
+      if @version >= '0.8'
         formatter.to_int(:createTime)
       end
 
@@ -289,7 +283,7 @@ module BigBlueButton
       formatter.to_datetime(:endTime)
       formatter.to_int(:participantCount)
       formatter.to_int(:moderatorCount)
-      if @version >= "0.8"
+      if @version >= '0.8'
         formatter.to_string(:meetingName)
         formatter.to_int(:maxUsers)
         formatter.to_int(:voiceBridge)
@@ -333,7 +327,7 @@ module BigBlueButton
     # the initialization of this object.
     def get_api_version
       response = send_api_request(:index)
-      response[:returncode] ? response[:version].to_s : ""
+      response[:returncode] ? response[:version].to_s : ''
     end
 
 
@@ -386,11 +380,11 @@ module BigBlueButton
     #   }
     #
     def get_recordings(options={})
-      raise BigBlueButtonException.new("Method only supported for versions >= 0.8") if @version < "0.8"
+      raise BigBlueButtonException.new('Method only supported for versions >= 0.8') if @version < '0.8'
 
       # ["id1", "id2", "id3"] becomes "id1,id2,id3"
       if options.has_key?(:meetingID)
-        options[:meetingID] = options[:meetingID].join(",") if options[:meetingID].instance_of?(Array)
+        options[:meetingID] = options[:meetingID].join(',') if options[:meetingID].instance_of?(Array)
       end
 
       response = send_api_request(:getRecordings, options)
@@ -415,9 +409,9 @@ module BigBlueButton
     #   { :returncode => true, :published => true }
     #
     def publish_recordings(recordIDs, publish)
-      raise BigBlueButtonException.new("Method only supported for versions >= 0.8") if @version < "0.8"
+      raise BigBlueButtonException.new('Method only supported for versions >= 0.8') if @version < '0.8'
 
-      recordIDs = recordIDs.join(",") if recordIDs.instance_of?(Array) # ["id1", "id2"] becomes "id1,id2"
+      recordIDs = recordIDs.join(',') if recordIDs.instance_of?(Array) # ["id1", "id2"] becomes "id1,id2"
       send_api_request(:publishRecordings, { :recordID => recordIDs, :publish => publish.to_s })
     end
 
@@ -434,9 +428,9 @@ module BigBlueButton
     #   { :returncode => true, :deleted => true }
     #
     def delete_recordings(recordIDs)
-      raise BigBlueButtonException.new("Method only supported for versions >= 0.8") if @version < "0.8"
+      raise BigBlueButtonException.new('Method only supported for versions >= 0.8') if @version < '0.8'
 
-      recordIDs = recordIDs.join(",") if recordIDs.instance_of?(Array) # ["id1", "id2"] becomes "id1,id2"
+      recordIDs = recordIDs.join(',') if recordIDs.instance_of?(Array) # ["id1", "id2"] becomes "id1,id2"
       send_api_request(:deleteRecordings, { :recordID => recordIDs })
     end
 
@@ -478,12 +472,13 @@ module BigBlueButton
         return @url
       end
 
+
       url = "#{@url}/#{method}?"
 
       # stringify and escape all params
       params.delete_if { |k, v| v.nil? } unless params.nil?
-      params_string = ""
-      params_string = params.map{ |k,v| "#{k}=" + CGI::escape(v.to_s) unless k.nil? || v.nil? }.join("&")
+      params_string = ''
+      params_string = params.map{ |k,v| "#{k}=" + CGI::escape(v.to_s) unless k.nil? || v.nil? }.join('&')
 
       # checksum calc
       checksum_param = params_string + @salt
@@ -530,7 +525,7 @@ module BigBlueButton
       # if the return code is an error generates an exception
       unless hash[:returncode]
         exception = BigBlueButtonException.new(hash[:message])
-        exception.key = hash.has_key?(:messageKey) ? hash[:messageKey] : ""
+        exception.key = hash.has_key?(:messageKey) ? hash[:messageKey] : ''
         raise exception
       end
 
