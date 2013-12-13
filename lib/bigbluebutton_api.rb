@@ -1,7 +1,7 @@
 require 'net/http'
 require 'cgi'
 require 'rexml/document'
-require 'digest/sha1'
+require 'digest/sha2'
 require 'rubygems'
 require 'hash_to_xml'
 require 'bigbluebutton_exception'
@@ -480,7 +480,7 @@ module BigBlueButton
       # checksum calc
       checksum_param = params_string + @salt
       checksum_param = method.to_s + checksum_param
-      checksum = Digest::SHA1.hexdigest(checksum_param)
+      checksum = Digest::SHA256.hexdigest(checksum_param)
 
       # final url
       url += "#{params_string}&" unless params_string.empty?
